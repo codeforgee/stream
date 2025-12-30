@@ -71,7 +71,7 @@ func main() {
 
 **输出示例：**
 ```
-状态: running
+状态: "running"
 收到 ID: 1
 收到 ID: 2
 ```
