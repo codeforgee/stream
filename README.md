@@ -3,7 +3,7 @@
 > **专为 LLM 流式输出设计的工程级 JSON 解析器**  
 > 告别等待完整 JSON，拥抱 True-time 语义解析
 
-[![Go Version](https://img.shields.io/badge/Go-%3E%3D1.18-blue.svg)](https://golang.org)
+[![Go Version](https://img.shields.io/badge/Go-%3E%3D1.21-blue.svg)](https://golang.org)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
 ## ✨ 特性
