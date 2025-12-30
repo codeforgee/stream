@@ -28,8 +28,7 @@ type Parser struct {
 	subs           []*Subscription // 订阅列表
 	tokenizer      *Tokenizer      // tokenizer 实例
 	err            error           // 解析过程中的错误
-	logger         DebugLogger     // 调试日志记录器
-	debugLevel     DebugLevel      // 调试级别
+	ob             ParserObserver  // 观察者 用于 Debug 等功能
 	cachedSegments []PathSegment   // 缓存的路径段数组
 	segmentsDirty  bool            // 标记 segments 是否需要重新计算
 	lastValueKind  ValueKind       // 当前值的类型
@@ -41,6 +40,7 @@ func NewParser() *Parser {
 		state: pIdle,
 		subs:  make([]*Subscription, 0, 8),
 		stack: make([]frame, 0, 32),
+		ob:    defaultObserver,
 	}
 
 	p.tokenizer = NewTokenizer(func(tok Token) {
@@ -48,6 +48,16 @@ func NewParser() *Parser {
 	})
 
 	return p
+}
+
+// EnableDebug 使用配置为 Parser 启用调试功能
+func (p *Parser) EnableDebug(config *DebugConfig) {
+	p.ob = NewDebugObserver(config)
+}
+
+// DisableDebug 禁用调试功能
+func (p *Parser) DisableDebug() {
+	p.ob = defaultObserver
 }
 
 // On 订阅指定路径的事件
@@ -77,7 +87,7 @@ func (p *Parser) emit(ev Event) {
 		ev.pathSegments = append([]PathSegment(nil), segments...)
 	}
 
-	p.debugLogEvent(ev, func() map[string]any {
+	p.ob.OnEvent(ev, func() map[string]any {
 		return map[string]any{
 			"subs_count":  len(p.subs),
 			"stack_depth": len(p.stack),
@@ -107,7 +117,7 @@ func (p *Parser) parentFrame() *frame {
 
 // OnToken 处理一个 token
 func (p *Parser) OnToken(tok Token) {
-	p.debugLogToken(tok)
+	p.ob.OnToken(tok, p.state, p.tokenizer.state)
 	switch tok.Type {
 	case TokenLBrace:
 		p.onObjectStart()
@@ -141,13 +151,16 @@ func (p *Parser) onObjectStart() {
 	p.stack = append(p.stack, frame{kind: frameObject})
 	p.segmentsDirty = true
 	p.state = pObjExpectKey
-	p.debugLogStateChange(oldState, p.state, func() map[string]any {
+	p.ob.OnStateChange(oldState, p.state, func() map[string]any {
 		return map[string]any{
 			"action":      "object_start",
 			"stack_depth": len(p.stack),
 		}
 	})
-	p.debugLogStack()
+	p.ob.OnStackChange(p.stack, func() string {
+		p.updateCachedSegments()
+		return buildPathFromSegments(p.cachedSegments, pathOptions{})
+	})
 	p.emit(Event{
 		Type:     EventObjectStart,
 		pathOpts: pathOptions{},
@@ -158,7 +171,7 @@ func (p *Parser) onObjectEnd() {
 	top := p.topFrame()
 	if top == nil {
 		p.err = ErrMismatchedBrace
-		p.debugLogError(p.err, func() map[string]any {
+		p.ob.OnError(p.err, func() map[string]any {
 			return map[string]any{
 				"action":      "object_end",
 				"stack_empty": true,
@@ -168,7 +181,7 @@ func (p *Parser) onObjectEnd() {
 	}
 	if top.kind != frameObject {
 		p.err = ErrMismatchedBrace
-		p.debugLogError(p.err, func() map[string]any {
+		p.ob.OnError(p.err, func() map[string]any {
 			return map[string]any{
 				"action":   "object_end",
 				"expected": "frameObject",
@@ -191,7 +204,7 @@ func (p *Parser) onObjectEnd() {
 	topAfterPop := p.topFrame()
 	if topAfterPop == nil {
 		p.state = pIdle
-		p.debugLogStateChange(oldState, p.state, func() map[string]any {
+		p.ob.OnStateChange(oldState, p.state, func() map[string]any {
 			return map[string]any{
 				"action": "object_end",
 				"result": "idle",
@@ -212,7 +225,7 @@ func (p *Parser) onObjectEnd() {
 		topAfterPop.index++
 		p.segmentsDirty = true
 		p.state = pArrAfterValue
-		p.debugLogStateChange(oldState, p.state, func() map[string]any {
+		p.ob.OnStateChange(oldState, p.state, func() map[string]any {
 			return map[string]any{
 				"action":      "object_end",
 				"result":      "array_item",
@@ -228,7 +241,7 @@ func (p *Parser) onObjectEnd() {
 	case frameObject:
 		p.state = pObjAfterValue
 	}
-	p.debugLogStateChange(oldState, p.state, func() map[string]any {
+	p.ob.OnStateChange(oldState, p.state, func() map[string]any {
 		return map[string]any{
 			"action":      "object_end",
 			"parent_kind": topAfterPop.kind,
@@ -241,13 +254,16 @@ func (p *Parser) onArrayStart() {
 	p.stack = append(p.stack, frame{kind: frameArray})
 	p.segmentsDirty = true
 	p.state = pArrExpectValue
-	p.debugLogStateChange(oldState, p.state, func() map[string]any {
+	p.ob.OnStateChange(oldState, p.state, func() map[string]any {
 		return map[string]any{
 			"action":      "array_start",
 			"stack_depth": len(p.stack),
 		}
 	})
-	p.debugLogStack()
+	p.ob.OnStackChange(p.stack, func() string {
+		p.updateCachedSegments()
+		return buildPathFromSegments(p.cachedSegments, pathOptions{})
+	})
 	p.emit(Event{
 		Type:     EventArrayStart,
 		pathOpts: pathOptions{excludeTopIndex: true},
@@ -258,7 +274,7 @@ func (p *Parser) onArrayEnd() {
 	top := p.topFrame()
 	if top == nil {
 		p.err = ErrMismatchedBracket
-		p.debugLogError(p.err, func() map[string]any {
+		p.ob.OnError(p.err, func() map[string]any {
 			return map[string]any{
 				"action":      "array_end",
 				"stack_empty": true,
@@ -268,7 +284,7 @@ func (p *Parser) onArrayEnd() {
 	}
 	if top.kind != frameArray {
 		p.err = ErrMismatchedBracket
-		p.debugLogError(p.err, func() map[string]any {
+		p.ob.OnError(p.err, func() map[string]any {
 			return map[string]any{
 				"action":   "array_end",
 				"expected": "frameArray",
@@ -291,7 +307,7 @@ func (p *Parser) onArrayEnd() {
 	topAfterPop := p.topFrame()
 	if topAfterPop == nil {
 		p.state = pIdle
-		p.debugLogStateChange(oldState, p.state, func() map[string]any {
+		p.ob.OnStateChange(oldState, p.state, func() map[string]any {
 			return map[string]any{
 				"action": "array_end",
 				"result": "idle",
@@ -312,7 +328,7 @@ func (p *Parser) onArrayEnd() {
 		topAfterPop.index++
 		p.segmentsDirty = true
 		p.state = pArrAfterValue
-		p.debugLogStateChange(oldState, p.state, func() map[string]any {
+		p.ob.OnStateChange(oldState, p.state, func() map[string]any {
 			return map[string]any{
 				"action":      "array_end",
 				"result":      "array_item",
@@ -328,7 +344,7 @@ func (p *Parser) onArrayEnd() {
 	case frameObject:
 		p.state = pObjAfterValue
 	}
-	p.debugLogStateChange(oldState, p.state, func() map[string]any {
+	p.ob.OnStateChange(oldState, p.state, func() map[string]any {
 		return map[string]any{
 			"action":      "array_end",
 			"parent_kind": topAfterPop.kind,
@@ -470,7 +486,7 @@ func (p *Parser) onComma() {
 	top := p.topFrame()
 	if top == nil {
 		p.err = ErrUnexpectedToken
-		p.debugLogError(p.err, func() map[string]any {
+		p.ob.OnError(p.err, func() map[string]any {
 			return map[string]any{
 				"action":      "comma",
 				"stack_empty": true,
@@ -485,7 +501,7 @@ func (p *Parser) onComma() {
 	case frameArray:
 		p.state = pArrExpectValue
 	}
-	p.debugLogStateChange(oldState, p.state, func() map[string]any {
+	p.ob.OnStateChange(oldState, p.state, func() map[string]any {
 		return map[string]any{
 			"action":     "comma",
 			"frame_kind": top.kind,
