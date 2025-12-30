@@ -6,7 +6,7 @@
 [![Go Version](https://img.shields.io/badge/Go-%3E%3D1.18-blue.svg)](https://golang.org)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-## ✨ 核心特性
+## ✨ 特性
 
 - ⚡ **True-time 解析**：字段一旦稳定立即触发，无需等待完整 JSON
 - 🔄 **流式输入**：支持 chunk/token/bytes 级别的增量输入
@@ -14,17 +14,17 @@
 - 🎯 **JSONPath 匹配**：支持 `$.items[*].id` 等路径模式（含通配符）
 - 🛡️ **容错性强**：优雅处理截断、未完成的 JSON
 
-## 🎬 快速开始
+## 🎬 安装
 
-### 安装
+使用 Go Modules：
 
 ```bash
 go get github.com/codeforgee/stream
 ```
 
-### 使用示例
+## 🧠 使用示例
 
-当 LLM 生成的内容是 JSON 片段时（可能被截断），用 stream 库实时解析：
+下面示例演示如何订阅字段并实时处理：
 
 ```go
 package main
@@ -37,48 +37,51 @@ import (
 func main() {
 	p := stream.NewParser()
 
-	// 订阅业务字段 - 一旦完成立即处理
+	// 订阅 status 字段
 	p.On("$.status", func(ev stream.Event) {
 		if ev.Value != nil && ev.Value.Complete {
-			fmt.Printf("✅ 状态: %s\n", ev.Value.String())
+			fmt.Printf("状态: %q\n", ev.Value.String())
 		}
 	})
 
+	// 订阅 items 数组中 id 字段
 	p.On("$.items[*].id", func(ev stream.Event) {
 		if ev.Value != nil && ev.Value.Complete {
-			fmt.Printf("📦 收到 ID: %d\n", ev.Value.Int64())
+			fmt.Printf("收到 ID: %d\n", ev.Value.Int64())
 		}
 	})
 
-	// 模拟 LLM 流式发送的 JSON 片段（可能被截断）
-	chunks := []string{
-		`{"status": "run`,      // 被截断
-		`ning", "items": [`,    // 继续
-		`{"id": 1}, `,          // 第一个 item
-		`{"id": 2}`,            // 第二个 item
+	// 模拟流式输入 JSON 片段
+	fragments := []string{
+		`{"status": "run`,
+		`ning", "items": [`,
+		`{"id": 1}, `,
+		`{"id": 2}`,
 		`]}`,
 	}
 
-	// 流式解析每个片段
-	for _, chunk := range chunks {
-		p.FeedString(chunk)
+	for _, frag := range fragments {
+		p.FeedString(frag)
 	}
+	
+	// 关闭解析器
 	p.Close(true)
 }
 ```
 
-**输出：**
+**输出示例：**
 ```
-✅ 状态: running
-📦 收到 ID: 1
-📦 收到 ID: 2
+状态: running
+收到 ID: 1
+收到 ID: 2
 ```
 
-**关键点：**
-- 即使 JSON 片段被截断（如 `{"status": "run`），也能实时处理已解析的部分
-- 字段一旦稳定立即触发，无需等待完整 JSON
+## 📌 设计理念
 
-### 关键 API
+在很多场景下（比如 LLM 流输出、日志聚合、HTTP chunked JSON），无法等待完整 JSON。
+传统的 encoding/json 需要整个数据到齐才能解析，而 stream 库能够逐片段解析，并实时触发事件。
+
+## 关键 API
 
 ```go
 // 创建解析器
@@ -104,6 +107,11 @@ p.Close(true)  // true = 正常结束, false = 中断
 - `$.items[*].id` - 数组通配符
 - `$.data.items[0].name` - 嵌套路径
 
+## 🛠 社区与贡献
+
+欢迎提出 Issue 或贡献 Pull Request！
+请阅读代码注释以了解更多细节。
+
 ---
 
 ## 🏗️ 工作原理
@@ -112,10 +120,6 @@ p.Close(true)  // true = 正常结束, false = 中断
 
 ---
 
-## 📄 许可证
+## 📜 许可证
 
-MIT License
-
----
-
-**Made with ❤️ for the LLM community**
+MIT License © 2025 — 欢迎自由使用、修改与传播。
