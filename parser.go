@@ -16,10 +16,26 @@ const (
 	valNumber
 )
 
+type stack []frame
+
+func (s stack) top() *frame {
+	if len(s) == 0 {
+		return nil
+	}
+	return &s[len(s)-1]
+}
+
+func (s stack) parent() *frame {
+	if len(s) < 2 {
+		return nil
+	}
+	return &s[len(s)-2]
+}
+
 // Parser 将 token 流转换为结构事件
 type Parser struct {
 	state          parserState     // 当前状态
-	stack          []frame         // 结构帧栈
+	stack          stack           // 结构帧栈
 	curValueKind   valueKind       // 当前值的类型
 	curString      strings.Builder // string 临时拼装
 	curNumber      strings.Builder // number 临时拼装
@@ -39,7 +55,7 @@ func NewParser() *Parser {
 	p := &Parser{
 		state: pIdle,
 		subs:  make([]*Subscription, 0, 8),
-		stack: make([]frame, 0, 32),
+		stack: make(stack, 0, 32),
 		ob:    defaultObserver,
 	}
 
@@ -101,20 +117,6 @@ func (p *Parser) emit(ev Event) {
 	}
 }
 
-func (p *Parser) topFrame() *frame {
-	if len(p.stack) == 0 {
-		return nil
-	}
-	return &p.stack[len(p.stack)-1]
-}
-
-func (p *Parser) parentFrame() *frame {
-	if len(p.stack) < 2 {
-		return nil
-	}
-	return &p.stack[len(p.stack)-2]
-}
-
 // OnToken 处理一个 token
 func (p *Parser) OnToken(tok Token) {
 	p.ob.OnToken(tok, p.state, p.tokenizer.state)
@@ -168,7 +170,7 @@ func (p *Parser) onObjectStart() {
 }
 
 func (p *Parser) onObjectEnd() {
-	top := p.topFrame()
+	top := p.stack.top()
 	if top == nil {
 		p.err = ErrMismatchedBrace
 		p.ob.OnError(p.err, func() map[string]any {
@@ -196,12 +198,12 @@ func (p *Parser) onObjectEnd() {
 		pathOpts: pathOptions{excludeTop: true},
 	})
 
-	parentFrame := p.parentFrame()
+	parent := p.stack.parent()
 
 	oldState := p.state
 	p.stack = p.stack[:len(p.stack)-1]
 	p.segmentsDirty = true
-	topAfterPop := p.topFrame()
+	topAfterPop := p.stack.top()
 	if topAfterPop == nil {
 		p.state = pIdle
 		p.ob.OnStateChange(oldState, p.state, func() map[string]any {
@@ -213,7 +215,7 @@ func (p *Parser) onObjectEnd() {
 		return
 	}
 
-	if parentFrame != nil && parentFrame.kind == frameArray {
+	if parent != nil && parent.kind == frameArray {
 		p.emit(Event{
 			Type:     EventArrayItem,
 			pathOpts: pathOptions{},
@@ -271,7 +273,7 @@ func (p *Parser) onArrayStart() {
 }
 
 func (p *Parser) onArrayEnd() {
-	top := p.topFrame()
+	top := p.stack.top()
 	if top == nil {
 		p.err = ErrMismatchedBracket
 		p.ob.OnError(p.err, func() map[string]any {
@@ -299,12 +301,12 @@ func (p *Parser) onArrayEnd() {
 		pathOpts: pathOptions{excludeTop: true},
 	})
 
-	parentFrame := p.parentFrame()
+	parent := p.stack.parent()
 
 	oldState := p.state
 	p.stack = p.stack[:len(p.stack)-1]
 	p.segmentsDirty = true
-	topAfterPop := p.topFrame()
+	topAfterPop := p.stack.top()
 	if topAfterPop == nil {
 		p.state = pIdle
 		p.ob.OnStateChange(oldState, p.state, func() map[string]any {
@@ -316,7 +318,7 @@ func (p *Parser) onArrayEnd() {
 		return
 	}
 
-	if parentFrame != nil && parentFrame.kind == frameArray {
+	if parent != nil && parent.kind == frameArray {
 		p.emit(Event{
 			Type:     EventArrayItem,
 			pathOpts: pathOptions{},
@@ -387,7 +389,7 @@ func (p *Parser) flushStringChunk() {
 func (p *Parser) onStringEnd() {
 	switch p.state {
 	case pObjExpectKey:
-		top := p.topFrame()
+		top := p.stack.top()
 		if top == nil {
 			p.err = ErrUnexpectedToken
 			return
@@ -483,7 +485,7 @@ func (p *Parser) onColon() {
 }
 
 func (p *Parser) onComma() {
-	top := p.topFrame()
+	top := p.stack.top()
 	if top == nil {
 		p.err = ErrUnexpectedToken
 		p.ob.OnError(p.err, func() map[string]any {
@@ -510,7 +512,7 @@ func (p *Parser) onComma() {
 }
 
 func (p *Parser) advanceAfterValue() {
-	top := p.topFrame()
+	top := p.stack.top()
 	if top == nil {
 		p.state = pIdle
 		return
@@ -577,7 +579,7 @@ func (p *Parser) flushIncompleteValue() {
 }
 
 func (p *Parser) closeUnfinishedFrames() {
-	for top := p.topFrame(); top != nil; top = p.topFrame() {
+	for top := p.stack.top(); top != nil; top = p.stack.top() {
 		switch top.kind {
 		case frameObject:
 			p.emit(Event{
