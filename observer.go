@@ -40,9 +40,8 @@ type debugObserver struct {
 
 // NewDebugObserver 创建一个 Debug 观察者
 func NewDebugObserver(config *DebugConfig) ParserObserver {
-	logger := NewDebugLogger(config)
 	return &debugObserver{
-		logger:     logger,
+		logger:     NewDebugLogger(config),
 		debugLevel: config.Level,
 	}
 }
@@ -80,11 +79,7 @@ func (d *debugObserver) OnEvent(event Event, context DebugContext) {
 	if d.logger == nil || d.debugLevel == DebugLevelNone {
 		return
 	}
-	level := DebugLevelInfo
-	if event.Type == EventStreamAbort {
-		level = DebugLevelError
-	}
-	d.logger.LogEvent(level, event, context)
+	d.logger.LogEvent(DebugLevelInfo, event, context)
 }
 
 func (d *debugObserver) OnError(err error, context DebugContext) {

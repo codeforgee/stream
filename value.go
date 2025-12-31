@@ -49,7 +49,6 @@ type PartialValue struct {
 	Value    any       // 值内容
 	Append   bool      // 是否为追加模式
 	Complete bool      // 是否完成
-	Aborted  bool      // 是否中断
 }
 
 // String 转换为字符串

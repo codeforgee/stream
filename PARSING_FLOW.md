@@ -233,8 +233,13 @@ graph TB
     Emit --> NextToken{还有字符?}
     
     NextToken -->|是| Tokenizer
-    NextToken -->|否| Close[Close Parser<br/>输出: EventStreamEnd]
-    Close --> End([结束])
+    NextToken -->|否| AutoEnd[自动检测 JSON 完整<br/>输出: EventStreamEnd]
+    AutoEnd --> End([结束])
+    
+    ObjEnd -->|Stack 为空| CheckComplete{检查 JSON 完整?}
+    ArrEnd -->|Stack 为空| CheckComplete
+    CheckComplete -->|完整| AutoEnd
+    CheckComplete -->|不完整| NextToken
 ```
 
 ## 详细状态转换图
@@ -341,7 +346,7 @@ graph LR
 | 25 | `4` | TokenNumberChunk("4") | pObjExpectValue | `[frameObject{key:"progress"}]` | - |
 | 26 | `2` | TokenNumberChunk("2") | pObjExpectValue | `[frameObject{key:"progress"}]` | - |
 | 27 | `}` | TokenNumberEnd | pObjAfterValue | `[frameObject{key:"progress"}]` | EventFieldValue(Value="42", Complete=true) |
-| 28 | `}` | TokenRBrace | pIdle | `[]` | EventObjectEnd |
+| 28 | `}` | TokenRBrace | pIdle | `[]` | EventObjectEnd, EventStreamEnd |
 
 ## 路径匹配与事件分发
 

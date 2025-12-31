@@ -20,8 +20,6 @@ const (
 	EventArrayItem
 	// EventStreamEnd 流正常结束
 	EventStreamEnd
-	// EventStreamAbort 流非正常中断
-	EventStreamAbort
 )
 
 // String 返回事件类型的字符串表示
@@ -41,8 +39,6 @@ func (et EventType) String() string {
 		return "ArrayItem"
 	case EventStreamEnd:
 		return "StreamEnd"
-	case EventStreamAbort:
-		return "StreamAbort"
 	default:
 		return fmt.Sprintf("EventType(%d)", et)
 	}

@@ -247,9 +247,6 @@ func (d *defaultDebugLogger) formatPartialValue(pv *PartialValue) string {
 	if pv.Complete {
 		parts = append(parts, "complete=true")
 	}
-	if pv.Aborted {
-		parts = append(parts, "aborted=true")
-	}
 	return fmt.Sprintf("Value(%s)", strings.Join(parts, ", "))
 }
 

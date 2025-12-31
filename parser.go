@@ -39,7 +39,6 @@ type Parser struct {
 	curValueKind   valueKind       // 当前值的类型
 	curString      strings.Builder // string 临时拼装
 	curNumber      strings.Builder // number 临时拼装
-	closing        bool            // 是否正在关闭
 	chunkBuffer    strings.Builder // 字符串 chunk 缓冲区
 	subs           []*Subscription // 订阅列表
 	tokenizer      *Tokenizer      // tokenizer 实例
@@ -409,28 +408,20 @@ func (p *Parser) onStringEnd() {
 			}
 		}
 
-		if p.closing && p.curString.Len() == 0 {
-			return
-		}
-		complete := !p.closing
-		aborted := p.closing
 		p.emit(Event{
 			Type:     EventFieldValue,
 			pathOpts: pathOptions{},
 			Value: &PartialValue{
 				Kind:     ValueString,
 				Value:    p.curString.String(),
-				Complete: complete,
-				Aborted:  aborted,
+				Complete: true,
 			},
 		})
 		p.curString.Reset()
 		p.chunkBuffer.Reset()
 		p.curValueKind = valNone
 		p.lastValueKind = ValueString
-		if !p.closing {
-			p.advanceAfterValue()
-		}
+		p.advanceAfterValue()
 	}
 }
 
@@ -440,28 +431,20 @@ func (p *Parser) onNumberChunk(s string) {
 }
 
 func (p *Parser) onNumberEnd() {
-	if p.closing && p.curNumber.Len() == 0 {
-		return
-	}
 	val := p.curNumber.String()
 	p.curNumber.Reset()
 	p.curValueKind = valNone
 	p.lastValueKind = ValueNumber
-	complete := !p.closing
-	aborted := p.closing
 	p.emit(Event{
 		Type:     EventFieldValue,
 		pathOpts: pathOptions{},
 		Value: &PartialValue{
 			Kind:     ValueNumber,
 			Value:    val,
-			Complete: complete,
-			Aborted:  aborted,
+			Complete: true,
 		},
 	})
-	if !p.closing {
-		p.advanceAfterValue()
-	}
+	p.advanceAfterValue()
 }
 
 func (p *Parser) onPrimitive(v any) {

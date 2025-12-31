@@ -31,11 +31,11 @@ func TestError_InvalidJSON(t *testing.T) {
 
 // TestError_TruncatedStream 测试截断的流
 func TestError_TruncatedStream(t *testing.T) {
-	var abortedCount int
+	var receivedChunks int
 	p := NewParser()
-	p.On("$", func(ev Event) {
-		if ev.Value != nil && ev.Value.Aborted {
-			abortedCount++
+	p.On("$.status", func(ev Event) {
+		if ev.Value != nil && ev.Value.Append {
+			receivedChunks++
 		}
 	})
 
@@ -45,9 +45,8 @@ func TestError_TruncatedStream(t *testing.T) {
 		t.Fatalf("FeedString() failed: %v", err)
 	}
 
-	// 应该有 Aborted 的值
-	if abortedCount == 0 {
-		t.Log("no aborted values found (this may be acceptable)")
+	if receivedChunks == 0 {
+		t.Log("no string chunks received (this may be acceptable if string is not started)")
 	}
 }
 
@@ -77,11 +76,13 @@ func TestError_MalformedNumber(t *testing.T) {
 
 // TestError_UnclosedString 测试未闭合的字符串
 func TestError_UnclosedString(t *testing.T) {
-	var abortedValue string
+	var receivedValue string
+	var isComplete bool
 	p := NewParser()
 	p.On("$.text", func(ev Event) {
-		if ev.Value != nil && ev.Value.Aborted {
-			abortedValue = ev.Value.Value.(string)
+		if ev.Value != nil {
+			receivedValue = ev.Value.String()
+			isComplete = ev.Value.Complete
 		}
 	})
 
@@ -91,11 +92,12 @@ func TestError_UnclosedString(t *testing.T) {
 		t.Fatalf("FeedString() failed: %v", err)
 	}
 
-	// 应该收到 Aborted 的值
-	if abortedValue == "" {
-		t.Log("no aborted value found (this may be acceptable)")
-	} else if abortedValue != "hello" {
-		t.Errorf("expected aborted value='hello', got '%s'", abortedValue)
+	if receivedValue == "" {
+		t.Log("no value received (this may be acceptable if string is not started)")
+	} else if receivedValue != "hello" {
+		t.Errorf("expected value='hello', got '%s'", receivedValue)
+	} else if isComplete {
+		t.Log("value marked as complete, but string is unclosed (this may be acceptable)")
 	}
 }
 
