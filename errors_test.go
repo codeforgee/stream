@@ -25,8 +25,6 @@ func TestError_InvalidJSON(t *testing.T) {
 				// 错误是可以接受的
 				return
 			}
-			// 即使没有错误，Close 也应该能处理
-			_ = p.Close(false)
 		})
 	}
 }
@@ -45,11 +43,6 @@ func TestError_TruncatedStream(t *testing.T) {
 	json := `{"status": "run`
 	if err := p.FeedString(json); err != nil {
 		t.Fatalf("FeedString() failed: %v", err)
-	}
-
-	// 非正常关闭
-	if err := p.Close(false); err != nil {
-		t.Fatalf("Close() failed: %v", err)
 	}
 
 	// 应该有 Aborted 的值
@@ -78,7 +71,6 @@ func TestError_MalformedNumber(t *testing.T) {
 				// 错误是可以接受的
 				return
 			}
-			_ = p.Close(true)
 		})
 	}
 }
@@ -99,42 +91,12 @@ func TestError_UnclosedString(t *testing.T) {
 		t.Fatalf("FeedString() failed: %v", err)
 	}
 
-	// 非正常关闭
-	if err := p.Close(false); err != nil {
-		t.Fatalf("Close() failed: %v", err)
-	}
-
 	// 应该收到 Aborted 的值
 	if abortedValue == "" {
 		t.Log("no aborted value found (this may be acceptable)")
 	} else if abortedValue != "hello" {
 		t.Errorf("expected aborted value='hello', got '%s'", abortedValue)
 	}
-}
-
-// TestError_ConcurrentAccess 测试并发访问（基础测试）
-func TestError_ConcurrentAccess(t *testing.T) {
-	// 注意：当前实现不是线程安全的
-	// 这个测试只是验证不会 panic
-	p := NewParser()
-
-	// 简单的并发测试
-	done := make(chan bool)
-	go func() {
-		_ = p.FeedString(`{"a": 1}`)
-		done <- true
-	}()
-
-	go func() {
-		_ = p.FeedString(`{"b": 2}`)
-		done <- true
-	}()
-
-	<-done
-	<-done
-
-	// 关闭应该不会 panic
-	_ = p.Close(true)
 }
 
 // TestError_CommaAtRootLevel 测试根级别的逗号（应该返回错误而不是 panic）

@@ -15,9 +15,6 @@ func BenchmarkParser_SimpleObject(b *testing.B) {
 		if err := p.FeedString(json); err != nil {
 			b.Fatal(err)
 		}
-		if err := p.Close(true); err != nil {
-			b.Fatal(err)
-		}
 	}
 }
 
@@ -31,9 +28,6 @@ func BenchmarkParser_SimpleObjectWithSubscription(b *testing.B) {
 		p.On("$.progress", func(ev Event) {})
 		p.On("$.message", func(ev Event) {})
 		if err := p.FeedString(json); err != nil {
-			b.Fatal(err)
-		}
-		if err := p.Close(true); err != nil {
 			b.Fatal(err)
 		}
 	}
@@ -51,9 +45,6 @@ func BenchmarkParser_LargeArray(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		p := NewParser()
 		if err := p.FeedString(json); err != nil {
-			b.Fatal(err)
-		}
-		if err := p.Close(true); err != nil {
 			b.Fatal(err)
 		}
 	}
@@ -76,9 +67,6 @@ func BenchmarkParser_LargeArrayWithWildcard(b *testing.B) {
 		if err := p.FeedString(json); err != nil {
 			b.Fatal(err)
 		}
-		if err := p.Close(true); err != nil {
-			b.Fatal(err)
-		}
 	}
 }
 
@@ -90,9 +78,6 @@ func BenchmarkParser_DeeplyNested(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		p := NewParser()
 		if err := p.FeedString(json); err != nil {
-			b.Fatal(err)
-		}
-		if err := p.Close(true); err != nil {
 			b.Fatal(err)
 		}
 	}
@@ -119,9 +104,6 @@ func BenchmarkParser_StreamingChunks(b *testing.B) {
 				b.Fatal(err)
 			}
 		}
-		if err := p.Close(true); err != nil {
-			b.Fatal(err)
-		}
 	}
 }
 
@@ -134,9 +116,6 @@ func BenchmarkParser_LargeString(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		p := NewParser()
 		if err := p.FeedString(json); err != nil {
-			b.Fatal(err)
-		}
-		if err := p.Close(true); err != nil {
 			b.Fatal(err)
 		}
 	}
@@ -162,9 +141,6 @@ func BenchmarkParser_ManySubscriptions(b *testing.B) {
 		if err := p.FeedString(json); err != nil {
 			b.Fatal(err)
 		}
-		if err := p.Close(true); err != nil {
-			b.Fatal(err)
-		}
 	}
 }
 
@@ -182,9 +158,6 @@ func BenchmarkParser_ComplexNestedArray(b *testing.B) {
 		if err := p.FeedString(json); err != nil {
 			b.Fatal(err)
 		}
-		if err := p.Close(true); err != nil {
-			b.Fatal(err)
-		}
 	}
 }
 
@@ -200,9 +173,6 @@ func BenchmarkParser_NumberParsing(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		p := NewParser()
 		if err := p.FeedString(json); err != nil {
-			b.Fatal(err)
-		}
-		if err := p.Close(true); err != nil {
 			b.Fatal(err)
 		}
 	}
@@ -233,9 +203,6 @@ func BenchmarkParser_StringChunkFlushing(b *testing.B) {
 		if err := p.FeedString(jsonSuffix); err != nil {
 			b.Fatal(err)
 		}
-		if err := p.Close(true); err != nil {
-			b.Fatal(err)
-		}
 	}
 }
 
@@ -254,9 +221,6 @@ func BenchmarkParser_MixedTypes(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		p := NewParser()
 		if err := p.FeedString(json); err != nil {
-			b.Fatal(err)
-		}
-		if err := p.Close(true); err != nil {
 			b.Fatal(err)
 		}
 	}
@@ -303,9 +267,6 @@ func BenchmarkPathMatching(b *testing.B) {
 		if err := p.FeedString(json); err != nil {
 			b.Fatal(err)
 		}
-		if err := p.Close(true); err != nil {
-			b.Fatal(err)
-		}
 	}
 }
 
@@ -339,9 +300,6 @@ func BenchmarkParser_RealWorldLLMStream(b *testing.B) {
 			if err := p.Feed(chunk); err != nil {
 				b.Fatal(err)
 			}
-		}
-		if err := p.Close(true); err != nil {
-			b.Fatal(err)
 		}
 	}
 }

@@ -63,9 +63,6 @@ func main() {
 	for _, frag := range fragments {
 		p.FeedString(frag)
 	}
-	
-	// 关闭解析器
-	p.Close(true)
 }
 ```
 
@@ -92,9 +89,6 @@ p.On("$.field", func(ev stream.Event) {
 // 流式输入
 p.Feed([]byte(chunk))
 p.FeedString(chunk)
-
-// 关闭解析器
-p.Close(true)  // true = 正常结束, false = 中断
 ```
 
 **支持的路径格式：**

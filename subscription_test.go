@@ -17,9 +17,6 @@ func TestSubscription_SimplePath(t *testing.T) {
 	if err := p.FeedString(json); err != nil {
 		t.Fatalf("FeedString() failed: %v", err)
 	}
-	if err := p.Close(true); err != nil {
-		t.Fatalf("Close() failed: %v", err)
-	}
 
 	// 应该收到 FieldValue 事件
 	if len(receivedEvents) == 0 {
@@ -53,9 +50,6 @@ func TestSubscription_Wildcard(t *testing.T) {
 	json := `{"items": [{"id": 1}, {"id": 2}]}`
 	if err := p.FeedString(json); err != nil {
 		t.Fatalf("FeedString() failed: %v", err)
-	}
-	if err := p.Close(true); err != nil {
-		t.Fatalf("Close() failed: %v", err)
 	}
 
 	// 应该收到两个 FieldValue 事件：$.items[0].id 和 $.items[1].id
@@ -98,9 +92,6 @@ func TestSubscription_MultipleSubscriptions(t *testing.T) {
 	if err := p.FeedString(json); err != nil {
 		t.Fatalf("FeedString() failed: %v", err)
 	}
-	if err := p.Close(true); err != nil {
-		t.Fatalf("Close() failed: %v", err)
-	}
 
 	// 应该收到 status 事件
 	if len(statusEvents) == 0 {
@@ -128,9 +119,6 @@ func TestSubscription_ArrayItem(t *testing.T) {
 	if err := p.FeedString(json); err != nil {
 		t.Fatalf("FeedString() failed: %v", err)
 	}
-	if err := p.Close(true); err != nil {
-		t.Fatalf("Close() failed: %v", err)
-	}
 
 	// 应该收到两个 ArrayItem 事件
 	if len(receivedEvents) != 2 {
@@ -157,9 +145,6 @@ func TestSubscription_NestedPath(t *testing.T) {
 	json := `{"data": {"items": [{"name": "foo"}, {"name": "bar"}]}}`
 	if err := p.FeedString(json); err != nil {
 		t.Fatalf("FeedString() failed: %v", err)
-	}
-	if err := p.Close(true); err != nil {
-		t.Fatalf("Close() failed: %v", err)
 	}
 
 	// 应该收到两个 FieldValue 事件

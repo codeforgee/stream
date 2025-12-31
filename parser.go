@@ -212,6 +212,7 @@ func (p *Parser) onObjectEnd() {
 				"result": "idle",
 			}
 		})
+		p.emitStreamEnd()
 		return
 	}
 
@@ -315,6 +316,7 @@ func (p *Parser) onArrayEnd() {
 				"result": "idle",
 			}
 		})
+		p.emitStreamEnd()
 		return
 	}
 
@@ -535,92 +537,15 @@ func (p *Parser) advanceAfterValue() {
 	}
 }
 
-func (p *Parser) flushIncompleteValue() {
-	if p.curValueKind == valString {
-		p.flushStringChunk()
-	}
-
-	if p.curValueKind == valNone {
-		return
-	}
-
-	var value *PartialValue
-	switch p.curValueKind {
-	case valString:
-		if p.curString.Len() > 0 {
-			value = &PartialValue{
-				Kind:    ValueString,
-				Value:   p.curString.String(),
-				Aborted: true,
-			}
-			p.curString.Reset()
-			p.chunkBuffer.Reset()
-		}
-	case valNumber:
-		if p.curNumber.Len() > 0 {
-			value = &PartialValue{
-				Kind:    ValueNumber,
-				Value:   p.curNumber.String(),
-				Aborted: true,
-			}
-			p.curNumber.Reset()
-		}
-	}
-
-	if value != nil {
-		p.emit(Event{
-			Type:     EventFieldValue,
-			pathOpts: pathOptions{},
-			Value:    value,
-		})
-	}
-
-	p.curValueKind = valNone
-}
-
-func (p *Parser) closeUnfinishedFrames() {
-	for top := p.stack.top(); top != nil; top = p.stack.top() {
-		switch top.kind {
-		case frameObject:
-			p.emit(Event{
-				Type:     EventObjectEnd,
-				pathOpts: pathOptions{excludeTop: true},
-			})
-		case frameArray:
-			p.emit(Event{
-				Type:     EventArrayEnd,
-				pathOpts: pathOptions{excludeTop: true},
-			})
-		}
-		p.stack = p.stack[:len(p.stack)-1]
-	}
-}
-
-// Close 关闭 parser，处理未完成的状态
-func (p *Parser) Close(normal bool) error {
-	if p.tokenizer != nil {
-		p.tokenizer.Close()
-	}
-
-	p.closing = true
-
-	p.flushIncompleteValue()
-
-	p.closeUnfinishedFrames()
-
-	if normal {
+func (p *Parser) emitStreamEnd() {
+	if p.state == pIdle &&
+		p.curValueKind == valNone &&
+		p.tokenizer.state == tIdle {
 		p.emit(Event{
 			Type:     EventStreamEnd,
 			pathOpts: pathOptions{},
 		})
-	} else {
-		p.emit(Event{
-			Type:     EventStreamAbort,
-			pathOpts: pathOptions{},
-		})
 	}
-
-	return nil
 }
 
 func (p *Parser) checkState() error {
