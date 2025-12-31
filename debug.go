@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 	"time"
+	"unicode/utf8"
 )
 
 func init() {
@@ -179,13 +180,18 @@ func (d *defaultDebugLogger) LogMessage(level DebugLevel, message string, contex
 	d.log(level, "MSG: %s%s", message, ctxStr)
 }
 
+func (d *defaultDebugLogger) truncateString(s string) string {
+	if d.maxValueLength > 0 && utf8.RuneCountInString(s) > d.maxValueLength {
+		runes := []rune(s)
+		return string(runes[:d.maxValueLength]) + "..."
+	}
+	return s
+}
+
 func (d *defaultDebugLogger) formatToken(token Token) string {
 	switch token.Type {
 	case TokenStringChunk:
-		value := token.Value
-		if len(value) > 20 {
-			value = value[:20] + "..."
-		}
+		value := d.truncateString(token.Value)
 		return fmt.Sprintf("StringChunk(%q)", value)
 	case TokenStringEnd:
 		return "StringEnd"
@@ -232,10 +238,7 @@ func (d *defaultDebugLogger) formatPartialValue(pv *PartialValue) string {
 	parts = append(parts, fmt.Sprintf("kind=%s", pv.Kind.String()))
 	if pv.Value != nil {
 		valueStr := fmt.Sprintf("%v", pv.Value)
-		maxLen := d.maxValueLength
-		if maxLen > 0 && len(valueStr) > maxLen {
-			valueStr = valueStr[:maxLen] + "..."
-		}
+		valueStr = d.truncateString(valueStr)
 		parts = append(parts, fmt.Sprintf("value=%q", valueStr))
 	}
 	if pv.Append {
